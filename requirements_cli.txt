@@ -1,0 +1,3 @@
+# Extra packages for downloading options
+pytube==15.0.0
+spotdl==4.2.8

@@ -122,3 +122,4 @@ dmypy.json
 
 # MP£ files folder
 mp3_files
+.streamlit/secrets.toml
