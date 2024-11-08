@@ -1,8 +1,9 @@
 from pathlib import Path
 import tempfile
+import time
 import streamlit as st
 
-from library.snippet import Snippet, extract_snippet
+from library.snippet import Snippet, extract_snippet, extract_multiple_snippets
 
 
 @st.dialog("Add snippet")
@@ -47,17 +48,37 @@ def snippet_management():
 
 def run_process(filedata:bytes):
 
-    snippet = st.session_state.snippets[0]
     input_file = tempfile.NamedTemporaryFile(delete=False)
     output_file = tempfile.NamedTemporaryFile(delete=False)
 
     try:
         input_file.write(filedata)
-        extract_snippet(Path(input_file.name), snippet, Path(output_file.name))
+        if len(st.session_state.snippets) == 1:
+            # Single part, so handle directly
+            snippet = st.session_state.snippets[0]
+            extract_snippet(Path(input_file.name), snippet, Path(output_file.name))
+        else:
+            progress = st.progress(0, "Clipping in progress")
+            def progress_callback(percentage:float):
+                progress.progress(percentage)
+
+            # Multiple files, so need to handle with parts
+            snippets = st.session_state.snippets.copy()
+            extract_multiple_snippets(Path(input_file.name), Path(output_file.name), snippets, part_completion_callback=progress_callback)
+
+            del snippets
+            time.sleep(1)
+            progress.empty()
+
         output_data = output_file.read()
     finally:
         input_file.close()
+        if Path(input_file.name).exists():
+            Path(input_file.name).unlink()
+
         output_file.close()
+        if Path(output_file.name).exists():
+            Path(output_file.name).unlink()
 
     return output_data
 
@@ -81,7 +102,8 @@ def main():
     st.subheader("Output")
     col1, col2 = st.columns(2)
     output_data = None
-    if col1.button("Run process"):
+    run_btn = col1.button("Run process")
+    if run_btn:
         input_data = uploaded_file.read()
         output_data = run_process(input_data)
 
